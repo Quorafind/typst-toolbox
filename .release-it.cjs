@@ -1,0 +1,39 @@
+require("dotenv").config();
+
+module.exports = {
+	ci: true,
+	git: {
+		commitMessage: "chore: release ${version}",
+		tagName: "${version}",
+		requireCleanWorkingDir: false,
+		push: true,
+		tagAnnotation: "Release ${version}",
+		commit: true,
+		tag: true,
+	},
+	npm: {
+		publish: false,
+	},
+	github: {
+		release: true,
+		releaseName: "${version}",
+		assets: [
+			"main.js",
+			"manifest.json",
+			"styles.css",
+			"dist/wasm-modules.zip",
+		],
+	},
+	plugins: {
+		"@release-it/conventional-changelog": {
+			preset: "angular",
+			infile: "CHANGELOG.md",
+			header: "# Changelog",
+		},
+	},
+	hooks: {
+		"before:init": ["pnpm run test"],
+		"after:bump": ["pnpm run version", "pnpm run build:release"],
+		"before:git:release": ["git add manifest.json versions.json"],
+	},
+};
