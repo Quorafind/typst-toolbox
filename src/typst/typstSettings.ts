@@ -65,7 +65,15 @@ export interface TypstSettings {
 
 	// === 中间文件配置 ===
 	/**
-	 * .typ 文件存储模式
+	 * Whether to retain the intermediate .typ file after compilation
+	 * - true: Keep the .typ file permanently
+	 * - false: Delete the .typ file after compilation (cleaner workspace)
+	 * @default false
+	 */
+	retainIntermediateFiles: boolean;
+
+	/**
+	 * .typ 文件存储模式（仅当 retainIntermediateFiles 为 true 时有效）
 	 * - "same-dir": 与源 .md 文件同目录（默认，向后兼容）
 	 * - "unified": 统一存储到指定目录
 	 * - "custom": 自定义目录（相对于vault根目录或绝对路径）
@@ -133,6 +141,7 @@ export const DEFAULT_TYPST_SETTINGS: TypstSettings = {
 	templateFolderMapping: {},
 
 	// 新增默认值（向后兼容）
+	retainIntermediateFiles: false, // 默认不保留中间文件
 	typFileStorageMode: "same-dir",
 	typFileDirectory: ".typst-temp",
 	outputDirectory: undefined,

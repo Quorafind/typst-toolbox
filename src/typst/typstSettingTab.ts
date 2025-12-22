@@ -24,6 +24,7 @@ import {
 	loadLocalWasmFile,
 	WasmStorageInfo,
 } from "./typstWasmStorage";
+import { SettingGroup } from "./settingGroup";
 
 /**
  * Check if Typst CLI is installed and get version using path resolver
@@ -525,142 +526,162 @@ export function renderTypstSettings(
 
 	const section = containerEl.createDiv({ cls: "typst-settings" });
 
-	new Setting(section)
-		.setHeading()
-		.setName("Typst Settings")
-		.setDesc(
-			"Configure Markdown to Typst conversion and compilation options.",
-		);
+	// ============================================================
+	// Group 1: Conversion Rules (转换规则)
+	// ============================================================
+	const conversionGroup = new SettingGroup(section).setHeading(
+		"Conversion Rules",
+	);
 
-	new Setting(section)
-		.setName("Trigger tags")
-		.setDesc(
-			"Typst conversion is triggered if any of these tags are present in frontmatter",
-		)
-		.addText((text) => {
-			text.setPlaceholder("bon-typst")
-				.setValue(typstSettings.triggerTags.join(", "))
-				.onChange(async (value) => {
-					const tags = value
-						.split(",")
-						.map((tag) =>
-							tag.replace(/^#/, "").trim().toLowerCase(),
-						)
-						.filter(Boolean);
-					typstSettings.triggerTags = tags.length
-						? tags
-						: ["bon-typst"];
-					await plugin.saveSettings();
-				});
-		});
+	conversionGroup.addSetting((setting) => {
+		setting
+			.setName("Trigger tags")
+			.setDesc(
+				"Typst conversion is triggered if any of these tags are present in frontmatter",
+			)
+			.addText((text) => {
+				text.setPlaceholder("bon-typst")
+					.setValue(typstSettings.triggerTags.join(", "))
+					.onChange(async (value) => {
+						const tags = value
+							.split(",")
+							.map((tag) =>
+								tag.replace(/^#/, "").trim().toLowerCase(),
+							)
+							.filter(Boolean);
+						typstSettings.triggerTags = tags.length
+							? tags
+							: ["bon-typst"];
+						await plugin.saveSettings();
+					});
+			});
+	});
 
-	new Setting(section)
-		.setName("Auto compile Typst")
-		.setDesc(
-			"Automatically convert and compile Typst when file changes are detected. If disabled, no automatic conversion will occur (use commands to manually convert).",
-		)
-		.addToggle((toggle) =>
-			toggle
-				.setValue(typstSettings.autoCompile)
-				.onChange(async (value) => {
-					typstSettings.autoCompile = value;
-					await plugin.saveSettings();
-				}),
-		);
+	conversionGroup.addSetting((setting) => {
+		setting
+			.setName("Transform engine")
+			.setDesc(
+				"Choose built-in AST transform or continue using custom scripts",
+			)
+			.addDropdown((dropdown) => {
+				dropdown.addOption("ast", "Built-in AST");
+				dropdown.addOption("script", "Custom Script");
+				dropdown
+					.setValue(typstSettings.transformMode ?? "ast")
+					.onChange(async (value) => {
+						typstSettings.transformMode =
+							value as TypstTransformMode;
+						await plugin.saveSettings();
+						await plugin.refreshTypstFeatures();
+						new Notice("Typst transform engine updated");
+					});
+			});
+	});
 
-	new Setting(section)
-		.setName("Show notice on auto compile")
-		.setDesc(
-			"Display success notification with action buttons when auto-compile completes. If disabled, auto-compile runs silently (recommended to avoid frequent interruptions).",
-		)
-		.addToggle((toggle) =>
-			toggle
-				.setValue(typstSettings.showNoticeOnAutoCompile)
-				.onChange(async (value) => {
-					typstSettings.showNoticeOnAutoCompile = value;
-					await plugin.saveSettings();
-				}),
-		);
+	conversionGroup.addSetting((setting) => {
+		setting
+			.setName("Max embed depth")
+			.setDesc(
+				"Limit the recursion depth of ![[file]] embeds to avoid cyclic references",
+			)
+			.addSlider((slider) => {
+				slider
+					.setLimits(1, 10, 1)
+					.setDynamicTooltip()
+					.setValue(typstSettings.maxEmbedDepth ?? 5)
+					.onChange(async (value) => {
+						typstSettings.maxEmbedDepth = value;
+						await plugin.saveSettings();
+					});
+			});
+	});
 
-	new Setting(section)
-		.setName("Transform engine")
-		.setDesc(
-			"Choose built-in AST transform or continue using custom scripts",
-		)
-		.addDropdown((dropdown) => {
-			dropdown.addOption("ast", "Built-in AST");
-			dropdown.addOption("script", "Custom Script");
-			dropdown
-				.setValue(typstSettings.transformMode ?? "ast")
-				.onChange(async (value) => {
-					typstSettings.transformMode = value as TypstTransformMode;
-					await plugin.saveSettings();
-					await plugin.refreshTypstFeatures();
-					new Notice("Typst transform engine updated");
-				});
-		});
-	new Setting(section)
-		.setName("Max embed depth")
-		.setDesc(
-			"Limit the recursion depth of ![[file]] embeds to avoid cyclic references",
-		)
-		.addSlider((slider) => {
-			slider
-				.setLimits(1, 10, 1)
-				.setDynamicTooltip()
-				.setValue(typstSettings.maxEmbedDepth ?? 5)
-				.onChange(async (value) => {
-					typstSettings.maxEmbedDepth = value;
-					await plugin.saveSettings();
-				});
-		});
+	conversionGroup.addSetting((setting) => {
+		setting
+			.setName("Enhanced checkbox support")
+			.setDesc(
+				"Enable 24+ checkbox styles with @preview/cheq package.\n" +
+					"⚠️ When enabled: Requires CLI compilation (slower, full features).\n" +
+					"When disabled: Uses basic GFM checkboxes (WASM compatible, faster).",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(typstSettings.enableCheckboxEnhancement ?? true)
+					.onChange(async (value) => {
+						typstSettings.enableCheckboxEnhancement = value;
+						await plugin.saveSettings();
+						new Notice(
+							value
+								? "Enhanced checkbox enabled. Using CLI for full features."
+								: "Enhanced checkbox disabled. Using WASM for faster rendering.",
+						);
+					}),
+			);
+	});
 
-	new Setting(section)
-		.setName("Enhanced checkbox support")
-		.setDesc(
-			"Enable 24+ checkbox styles with @preview/cheq package.\n" +
-				"⚠️ When enabled: Requires CLI compilation (slower, full features).\n" +
-				"When disabled: Uses basic GFM checkboxes (WASM compatible, faster).",
-		)
-		.addToggle((toggle) =>
-			toggle
-				.setValue(typstSettings.enableCheckboxEnhancement ?? true)
-				.onChange(async (value) => {
-					typstSettings.enableCheckboxEnhancement = value;
-					await plugin.saveSettings();
-					new Notice(
-						value
-							? "Enhanced checkbox enabled. Using CLI for full features."
-							: "Enhanced checkbox disabled. Using WASM for faster rendering.",
-					);
-				}),
-		);
+	conversionGroup.addSetting((setting) => {
+		setting
+			.setName("Enable Typst code block rendering")
+			.setDesc(
+				"Render typst code blocks as SVG in reading mode (uses WASM, no CLI required)",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(typstSettings.enableCodeBlock ?? true)
+					.onChange(async (value) => {
+						typstSettings.enableCodeBlock = value;
+						await plugin.saveSettings();
+						new Notice(
+							value
+								? "Typst code block rendering enabled. Please reload to take effect."
+								: "Typst code block rendering disabled. Please reload to take effect.",
+						);
+					}),
+			);
+	});
 
-	// 代码块渲染设置
-	new Setting(section).setHeading().setName("Code block rendering");
-	new Setting(section)
-		.setName("Enable Typst code block rendering")
-		.setDesc(
-			"Render typst code blocks as SVG in reading mode (uses WASM, no CLI required)",
-		)
-		.addToggle((toggle) =>
-			toggle
-				.setValue(typstSettings.enableCodeBlock ?? true)
-				.onChange(async (value) => {
-					typstSettings.enableCodeBlock = value;
-					await plugin.saveSettings();
-					new Notice(
-						value
-							? "Typst code block rendering enabled. Please reload to take effect."
-							: "Typst code block rendering disabled. Please reload to take effect.",
-					);
-				}),
-		);
+	// ============================================================
+	// Group 2: Compiler & Preview (编译与预览)
+	// ============================================================
+	const compilerGroup = new SettingGroup(section).setHeading(
+		"Compiler & Preview",
+	);
+
+	compilerGroup.addSetting((setting) => {
+		setting
+			.setName("Auto compile Typst")
+			.setDesc(
+				"Automatically convert and compile Typst when file changes are detected. If disabled, no automatic conversion will occur (use commands to manually convert).",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(typstSettings.autoCompile)
+					.onChange(async (value) => {
+						typstSettings.autoCompile = value;
+						await plugin.saveSettings();
+					}),
+			);
+	});
+
+	compilerGroup.addSetting((setting) => {
+		setting
+			.setName("Show notice on auto compile")
+			.setDesc(
+				"Display success notification with action buttons when auto-compile completes. If disabled, auto-compile runs silently (recommended to avoid frequent interruptions).",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(typstSettings.showNoticeOnAutoCompile)
+					.onChange(async (value) => {
+						typstSettings.showNoticeOnAutoCompile = value;
+						await plugin.saveSettings();
+					}),
+			);
+	});
 
 	// CLI 状态检测 - Only show on desktop
 	if (Platform.isDesktopApp) {
-		new Setting(section).setHeading().setName("Typst CLI");
-		const cliStatusSetting = new Setting(section)
+		const cliStatusSetting = new Setting(compilerGroup.getListEl())
 			.setName("CLI status")
 			.setDesc("Checking Typst CLI installation...");
 
@@ -727,7 +748,7 @@ export function renderTypstSettings(
 			return "Example: /path/to/typst";
 		};
 
-		new Setting(section)
+		new Setting(compilerGroup.getListEl())
 			.setName("Custom Typst CLI path (optional)")
 			.setDesc(
 				"Override auto-detection by specifying full path to typst executable.\n" +
@@ -778,262 +799,327 @@ export function renderTypstSettings(
 			});
 	} else {
 		// Mobile: Show info message instead of CLI settings
-		new Setting(section).setHeading().setName("Typst CLI");
-		new Setting(section)
-			.setName("CLI compilation not available")
-			.setDesc(
-				"📱 CLI compilation is only available on desktop.\n" +
-					"💡 On mobile, use WASM preview mode for real-time rendering.\n" +
-					"ℹ️ WASM mode doesn't support external packages but works offline.",
-			);
+		compilerGroup.addSetting((setting) => {
+			setting
+				.setName("CLI compilation not available")
+				.setDesc(
+					"📱 CLI compilation is only available on desktop.\n" +
+						"💡 On mobile, use WASM preview mode for real-time rendering.\n" +
+						"ℹ️ WASM mode doesn't support external packages but works offline.",
+				);
+		});
 	}
 
 	// 预览模式设置
-	new Setting(section)
-		.setName("File-level preview mode")
-		.setDesc(
-			"For Markdown files with trigger tags. WASM: Fast (no packages). Compile: Full support (requires Typst CLI).",
-		)
-		.addDropdown((dropdown) => {
-			dropdown.addOption("compile", "Compile with CLI (Recommended)");
-			dropdown.addOption("wasm", "WASM Preview (No Packages)");
-			dropdown.addOption("none", "No Preview");
-			dropdown
-				.setValue(typstSettings.previewMode ?? "compile")
-				.onChange(async (value) => {
-					const oldMode = typstSettings.previewMode;
-					typstSettings.previewMode = value as TypstPreviewMode;
+	compilerGroup.addSetting((setting) => {
+		setting
+			.setName("File-level preview mode")
+			.setDesc(
+				"For Markdown files with trigger tags. WASM: Fast (no packages). Compile: Full support (requires Typst CLI).",
+			)
+			.addDropdown((dropdown) => {
+				dropdown.addOption("compile", "Compile with CLI (Recommended)");
+				dropdown.addOption("wasm", "WASM Preview (No Packages)");
+				dropdown.addOption("none", "No Preview");
+				dropdown
+					.setValue(typstSettings.previewMode ?? "compile")
+					.onChange(async (value) => {
+						typstSettings.previewMode = value as TypstPreviewMode;
 
-					// WASM 模式下自动切换到 SVG 格式
-					if (
-						value === "wasm" &&
-						typstSettings.compileFormat !== "svg"
-					) {
-						typstSettings.compileFormat = "svg";
-						new Notice(
-							`Preview mode set to: ${value}\nCompile format auto-switched to SVG (WASM only supports SVG)`,
-						);
-					} else {
-						new Notice(`Preview mode set to: ${value}`);
-					}
+						// WASM 模式下自动切换到 SVG 格式
+						if (
+							value === "wasm" &&
+							typstSettings.compileFormat !== "svg"
+						) {
+							typstSettings.compileFormat = "svg";
+							new Notice(
+								`Preview mode set to: ${value}\nCompile format auto-switched to SVG (WASM only supports SVG)`,
+							);
+						} else {
+							new Notice(`Preview mode set to: ${value}`);
+						}
 
-					await plugin.saveSettings();
-					// 刷新设置页面以更新格式选项的可用状态
-					settingTab.display();
-				});
-		});
+						await plugin.saveSettings();
+						// 刷新设置页面以更新格式选项的可用状态
+						settingTab.display();
+					});
+			});
+	});
 
 	// 编译输出格式
 	const isWasmMode = typstSettings.previewMode === "wasm";
-	new Setting(section)
-		.setName("Compile format")
-		.setDesc(
-			isWasmMode
-				? "⚠️ WASM mode only supports SVG output. Switch to CLI mode for PDF/PNG."
-				: "Output format when using CLI compilation. SVG: Vector (best for preview). PNG: Raster image. PDF: Document.",
-		)
-		.addDropdown((dropdown) => {
-			// WASM 模式下只显示 SVG 选项
-			if (isWasmMode) {
-				dropdown.addOption("svg", "SVG (Vector) - WASM Only");
-			} else {
-				// CLI 模式下显示所有选项
-				dropdown.addOption("svg", "SVG (Vector)");
-				dropdown.addOption("png", "PNG (Image)");
-				dropdown.addOption("pdf", "PDF (Document)");
-			}
+	compilerGroup.addSetting((setting) => {
+		setting
+			.setName("Compile format")
+			.setDesc(
+				isWasmMode
+					? "⚠️ WASM mode only supports SVG output. Switch to CLI mode for PDF/PNG."
+					: "Output format when using CLI compilation. SVG: Vector (best for preview). PNG: Raster image. PDF: Document.",
+			)
+			.addDropdown((dropdown) => {
+				// WASM 模式下只显示 SVG 选项
+				if (isWasmMode) {
+					dropdown.addOption("svg", "SVG (Vector) - WASM Only");
+				} else {
+					// CLI 模式下显示所有选项
+					dropdown.addOption("svg", "SVG (Vector)");
+					dropdown.addOption("png", "PNG (Image)");
+					dropdown.addOption("pdf", "PDF (Document)");
+				}
 
-			dropdown
-				.setValue(typstSettings.compileFormat ?? "svg")
-				.setDisabled(isWasmMode) // WASM 模式下禁用选择
-				.onChange(async (value) => {
-					typstSettings.compileFormat = value as TypstCompileFormat;
-					await plugin.saveSettings();
-					new Notice(`Compile format set to: ${value}`);
-				});
-		});
+				dropdown
+					.setValue(typstSettings.compileFormat ?? "svg")
+					.setDisabled(isWasmMode) // WASM 模式下禁用选择
+					.onChange(async (value) => {
+						typstSettings.compileFormat =
+							value as TypstCompileFormat;
+						await plugin.saveSettings();
+						new Notice(`Compile format set to: ${value}`);
+					});
+			});
+	});
+
+	compilerGroup.addSetting((setting) => {
+		setting
+			.setName("Code block cache size")
+			.setDesc(
+				"Number of compiled SVG results to cache (larger = more memory)",
+			)
+			.addSlider((slider) => {
+				slider
+					.setLimits(10, 500, 10)
+					.setDynamicTooltip()
+					.setValue(typstSettings.codeBlockCacheSize ?? 100)
+					.onChange(async (value) => {
+						typstSettings.codeBlockCacheSize = value;
+						await plugin.saveSettings();
+					});
+			});
+	});
 
 	// 外部包支持说明
-	new Setting(section)
-		.setName("External Typst packages")
-		.setDesc(
-			"⚠️ WASM rendering does not support external packages (@preview/...). To use external packages, switch Preview Mode to 'Compile with CLI' and install Typst CLI.",
-		);
+	compilerGroup.addSetting((setting) => {
+		setting
+			.setName("External Typst packages")
+			.setDesc(
+				"⚠️ WASM rendering does not support external packages (@preview/...). To use external packages, switch Preview Mode to 'Compile with CLI' and install Typst CLI.",
+			);
+	});
 
 	// WASM 管理设置
 	renderWasmManagementSettings(section, plugin);
 
-	new Setting(section)
-		.setName("Code block cache size")
-		.setDesc(
-			"Number of compiled SVG results to cache (larger = more memory)",
-		)
-		.addSlider((slider) => {
-			slider
-				.setLimits(10, 500, 10)
-				.setDynamicTooltip()
-				.setValue(typstSettings.codeBlockCacheSize ?? 100)
-				.onChange(async (value) => {
-					typstSettings.codeBlockCacheSize = value;
-					await plugin.saveSettings();
-				});
-		});
+	// ============================================================
+	// Group 3: File Storage (文件存储)
+	// ============================================================
+	const fileGroup = new SettingGroup(section).setHeading("File Storage");
 
-	// === 文件路径配置 ===
-	new Setting(section).setHeading().setName("File path configuration");
-
-	// .typ 文件存储模式
-	new Setting(section)
-		.setName("Intermediate .typ file storage")
-		.setDesc("Choose where to store intermediate .typ files")
-		.addDropdown((dropdown) => {
-			dropdown.addOption(
-				"same-dir",
-				"Same directory as source (default)",
-			);
-			dropdown.addOption("unified", "Unified directory (.typst-temp)");
-			dropdown.addOption("custom", "Custom directory");
-			dropdown
-				.setValue(typstSettings.typFileStorageMode || "same-dir")
-				.onChange(async (value) => {
-					typstSettings.typFileStorageMode = value as any;
-					await plugin.saveSettings();
-					settingTab.display(); // 刷新UI显示自定义目录输入框
-				});
-		});
-
-	// 自定义 .typ 目录（仅在 unified/custom 模式显示）
-	if (typstSettings.typFileStorageMode !== "same-dir") {
-		new Setting(section)
-			.setName(".typ file directory")
-			.setDesc("Vault-relative path for storing .typ files")
-			.addText((text) => {
-				text.setPlaceholder(".typst-temp")
-					.setValue(typstSettings.typFileDirectory || ".typst-temp")
+	// [NEW] 保留中间文件设置
+	fileGroup.addSetting((setting) => {
+		setting
+			.setName("Retain intermediate .typ files")
+			.setDesc(
+				"If enabled, .typ files are kept permanently. If disabled, they are deleted after compilation (cleaner workspace).",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(typstSettings.retainIntermediateFiles ?? false)
 					.onChange(async (value) => {
-						typstSettings.typFileDirectory =
-							value.trim() || ".typst-temp";
+						typstSettings.retainIntermediateFiles = value;
 						await plugin.saveSettings();
+						settingTab.display(); // 刷新以显示/隐藏相关设置
+					}),
+			);
+	});
+
+	// 仅当保留中间文件时显示存储模式设置
+	if (typstSettings.retainIntermediateFiles) {
+		// .typ 文件存储模式
+		fileGroup.addSetting((setting) => {
+			setting
+				.setName("Intermediate .typ file storage")
+				.setDesc("Choose where to store intermediate .typ files")
+				.addDropdown((dropdown) => {
+					dropdown.addOption(
+						"same-dir",
+						"Same directory as source (default)",
+					);
+					dropdown.addOption(
+						"unified",
+						"Unified directory (.typst-temp)",
+					);
+					dropdown.addOption("custom", "Custom directory");
+					dropdown
+						.setValue(
+							typstSettings.typFileStorageMode || "same-dir",
+						)
+						.onChange(async (value) => {
+							typstSettings.typFileStorageMode = value as any;
+							await plugin.saveSettings();
+							settingTab.display(); // 刷新UI显示自定义目录输入框
+						});
+				});
+		});
+
+		// 自定义 .typ 目录（仅在 unified/custom 模式显示）
+		if (typstSettings.typFileStorageMode !== "same-dir") {
+			fileGroup.addSetting((setting) => {
+				setting
+					.setName(".typ file directory")
+					.setDesc("Vault-relative path for storing .typ files")
+					.addText((text) => {
+						text.setPlaceholder(".typst-temp")
+							.setValue(
+								typstSettings.typFileDirectory || ".typst-temp",
+							)
+							.onChange(async (value) => {
+								typstSettings.typFileDirectory =
+									value.trim() || ".typst-temp";
+								await plugin.saveSettings();
+							});
 					});
 			});
+		}
 	}
 
 	// 输出文件目录
-	new Setting(section)
-		.setName("Output file directory (optional)")
-		.setDesc("Leave empty to output in the same directory as source file")
-		.addText((text) => {
-			text.setPlaceholder("exports/typst")
-				.setValue(typstSettings.outputDirectory || "")
-				.onChange(async (value) => {
-					typstSettings.outputDirectory = value.trim() || undefined;
-					await plugin.saveSettings();
-				});
-		});
+	fileGroup.addSetting((setting) => {
+		setting
+			.setName("Output file directory (optional)")
+			.setDesc(
+				"Leave empty to output in the same directory as source file",
+			)
+			.addText((text) => {
+				text.setPlaceholder("exports/typst")
+					.setValue(typstSettings.outputDirectory || "")
+					.onChange(async (value) => {
+						typstSettings.outputDirectory =
+							value.trim() || undefined;
+						await plugin.saveSettings();
+					});
+			});
+	});
 
 	// 输出文件命名优先级
-	new Setting(section)
-		.setName("Output filename source priority")
-		.setDesc(
-			"Priority order for determining output filename:\n" +
-				"1. Frontmatter (typst-output-name)\n" +
-				"2. Folder name\n" +
-				"3. File name (default)",
-		)
-		.addDropdown((dropdown) => {
-			dropdown.addOption(
-				"frontmatter,folder,filename",
-				"Frontmatter > Folder > Filename",
-			);
-			dropdown.addOption(
-				"frontmatter,filename,folder",
-				"Frontmatter > Filename > Folder",
-			);
-			dropdown.addOption(
-				"folder,filename,frontmatter",
-				"Folder > Filename > Frontmatter",
-			);
-			dropdown.addOption(
-				"filename,folder,frontmatter",
-				"Filename > Folder > Frontmatter",
-			);
+	fileGroup.addSetting((setting) => {
+		setting
+			.setName("Output filename source priority")
+			.setDesc(
+				"Priority order for determining output filename:\n" +
+					"1. Frontmatter (typst-output-name)\n" +
+					"2. Folder name\n" +
+					"3. File name (default)",
+			)
+			.addDropdown((dropdown) => {
+				dropdown.addOption(
+					"frontmatter,folder,filename",
+					"Frontmatter > Folder > Filename",
+				);
+				dropdown.addOption(
+					"frontmatter,filename,folder",
+					"Frontmatter > Filename > Folder",
+				);
+				dropdown.addOption(
+					"folder,filename,frontmatter",
+					"Folder > Filename > Frontmatter",
+				);
+				dropdown.addOption(
+					"filename,folder,frontmatter",
+					"Filename > Folder > Frontmatter",
+				);
 
-			const current = typstSettings.outputNamingPriority.join(",");
-			dropdown.setValue(current).onChange(async (value) => {
-				typstSettings.outputNamingPriority = value.split(",") as any;
-				await plugin.saveSettings();
+				const current = typstSettings.outputNamingPriority.join(",");
+				dropdown.setValue(current).onChange(async (value) => {
+					typstSettings.outputNamingPriority = value.split(
+						",",
+					) as any;
+					await plugin.saveSettings();
+				});
 			});
-		});
+	});
 
 	// 时间戳选项
-	new Setting(section)
-		.setName("Append timestamp to output filename")
-		.setDesc("Add timestamp (YYYYMMDD-HHmmss) to avoid filename conflicts")
-		.addToggle((toggle) =>
-			toggle
-				.setValue(typstSettings.outputAppendTimestamp || false)
-				.onChange(async (value) => {
-					typstSettings.outputAppendTimestamp = value;
-					await plugin.saveSettings();
-				}),
-		);
+	fileGroup.addSetting((setting) => {
+		setting
+			.setName("Append timestamp to output filename")
+			.setDesc(
+				"Add timestamp (YYYYMMDD-HHmmss) to avoid filename conflicts",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(typstSettings.outputAppendTimestamp || false)
+					.onChange(async (value) => {
+						typstSettings.outputAppendTimestamp = value;
+						await plugin.saveSettings();
+					}),
+			);
+	});
+
+	// ============================================================
+	// Group 4: Script Management (脚本管理)
+	// ============================================================
+	const scriptGroup = new SettingGroup(section).setHeading(
+		"Script Management",
+	);
 
 	let pendingDirectory = typstSettings.scriptDirectory;
-	new Setting(section)
-		.setName("Script directory")
-		.setDesc("Vault-relative path for storing Typst transform scripts")
-		.addText((text) => {
-			text.setPlaceholder("typst-scripts")
-				.setValue(typstSettings.scriptDirectory)
-				.onChange((value) => {
-					pendingDirectory = value.trim() || "typst-scripts";
+	scriptGroup.addSetting((setting) => {
+		setting
+			.setName("Script directory")
+			.setDesc("Vault-relative path for storing Typst transform scripts")
+			.addText((text) => {
+				text.setPlaceholder("typst-scripts")
+					.setValue(typstSettings.scriptDirectory)
+					.onChange((value) => {
+						pendingDirectory = value.trim() || "typst-scripts";
+					});
+				text.inputEl.addEventListener("blur", async () => {
+					if (pendingDirectory === typstSettings.scriptDirectory) {
+						return;
+					}
+					typstSettings.scriptDirectory = pendingDirectory;
+					await plugin.saveSettings();
+					await plugin.refreshTypstFeatures();
+					new Notice("Typst script directory updated");
 				});
-			text.inputEl.addEventListener("blur", async () => {
-				if (pendingDirectory === typstSettings.scriptDirectory) {
-					return;
-				}
-				typstSettings.scriptDirectory = pendingDirectory;
-				await plugin.saveSettings();
-				await plugin.refreshTypstFeatures();
-				new Notice("Typst script directory updated");
+				text.inputEl.addEventListener("keydown", (event) => {
+					if (event.key === "Enter") {
+						event.preventDefault();
+						text.inputEl.blur();
+					}
+				});
 			});
-			text.inputEl.addEventListener("keydown", (event) => {
-				if (event.key === "Enter") {
-					event.preventDefault();
-					text.inputEl.blur();
-				}
-			});
-		});
-
-	new Setting(section).setHeading().setName("Script management");
+	});
 
 	// Default script selector
-	new Setting(section)
-		.setName("Default script")
-		.setDesc(
-			'Script used when no folder mapping or frontmatter specified. "default" is a read-only template.',
-		)
-		.addDropdown(async (dropdown) => {
-			dropdown.setDisabled(!manager);
-			if (manager) {
-				const scripts = await manager.listScripts();
-				scripts.forEach((name) => {
-					dropdown.addOption(
-						name,
-						name === "default" ? `${name} (template)` : name,
-					);
-				});
-				dropdown
-					.setValue(typstSettings.defaultScriptName || "default")
-					.onChange(async (value) => {
-						typstSettings.defaultScriptName = value;
-						await plugin.saveSettings();
-						new Notice(`Default script set to: ${value}`);
+	scriptGroup.addSetting((setting) => {
+		setting
+			.setName("Default script")
+			.setDesc(
+				'Script used when no folder mapping or frontmatter specified. "default" is a read-only template.',
+			)
+			.addDropdown(async (dropdown) => {
+				dropdown.setDisabled(!manager);
+				if (manager) {
+					const scripts = await manager.listScripts();
+					scripts.forEach((name) => {
+						dropdown.addOption(
+							name,
+							name === "default" ? `${name} (template)` : name,
+						);
 					});
-			}
-		});
+					dropdown
+						.setValue(typstSettings.defaultScriptName || "default")
+						.onChange(async (value) => {
+							typstSettings.defaultScriptName = value;
+							await plugin.saveSettings();
+							new Notice(`Default script set to: ${value}`);
+						});
+				}
+			});
+	});
 
-	const scriptSetting = new Setting(section)
+	const scriptSetting = new Setting(scriptGroup.getListEl())
 		.setName("Script list")
 		.setDesc("Manage Typst transform scripts");
 
@@ -1192,95 +1278,110 @@ export function renderTypstSettings(
 			}),
 	);
 
-	// ===== Template Management =====
-	// Reuse the converter variable defined at the top of renderTypstSettings
+	// ============================================================
+	// Group 5: Template Management (模板管理)
+	// ============================================================
+	const templateGroup = new SettingGroup(section).setHeading(
+		"Template Management",
+	);
 	const templateManager = converter?.getTemplateManager();
 
-	new Setting(section).setHeading().setName("Template management");
-
 	// Enable template system toggle
-	new Setting(section)
-		.setName("Enable template system")
-		.setDesc(
-			"Apply Typst templates before content. Templates are .typ files that define document formatting.",
-		)
-		.addToggle((toggle) =>
-			toggle
-				.setValue(typstSettings.enableTemplateSystem ?? true)
-				.onChange(async (value) => {
-					typstSettings.enableTemplateSystem = value;
-					await plugin.saveSettings();
-					settingTab.display(); // Refresh to show/hide template options
-				}),
-		);
+	templateGroup.addSetting((setting) => {
+		setting
+			.setName("Enable template system")
+			.setDesc(
+				"Apply Typst templates before content. Templates are .typ files that define document formatting.",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(typstSettings.enableTemplateSystem ?? true)
+					.onChange(async (value) => {
+						typstSettings.enableTemplateSystem = value;
+						await plugin.saveSettings();
+						settingTab.display(); // Refresh to show/hide template options
+					}),
+			);
+	});
 
 	if (!typstSettings.enableTemplateSystem) {
-		new Setting(section)
-			.setName("Template system disabled")
-			.setDesc("Enable template system above to manage templates");
+		templateGroup.addSetting((setting) => {
+			setting
+				.setName("Template system disabled")
+				.setDesc("Enable template system above to manage templates");
+		});
 		return; // Don't show template management when disabled
 	}
 
 	// Template directory configuration
 	let pendingTemplateDirectory =
 		typstSettings.templateDirectory || "typst-templates";
-	new Setting(section)
-		.setName("Template directory")
-		.setDesc("Vault-relative path for storing Typst templates")
-		.addText((text) => {
-			text.setPlaceholder("typst-templates")
-				.setValue(typstSettings.templateDirectory || "typst-templates")
-				.onChange((value) => {
-					pendingTemplateDirectory =
-						value.trim() || "typst-templates";
+	templateGroup.addSetting((setting) => {
+		setting
+			.setName("Template directory")
+			.setDesc("Vault-relative path for storing Typst templates")
+			.addText((text) => {
+				text.setPlaceholder("typst-templates")
+					.setValue(
+						typstSettings.templateDirectory || "typst-templates",
+					)
+					.onChange((value) => {
+						pendingTemplateDirectory =
+							value.trim() || "typst-templates";
+					});
+				text.inputEl.addEventListener("blur", async () => {
+					if (
+						pendingTemplateDirectory ===
+						typstSettings.templateDirectory
+					) {
+						return;
+					}
+					typstSettings.templateDirectory = pendingTemplateDirectory;
+					await plugin.saveSettings();
+					await plugin.refreshTypstFeatures();
+					new Notice("Typst template directory updated");
 				});
-			text.inputEl.addEventListener("blur", async () => {
-				if (
-					pendingTemplateDirectory === typstSettings.templateDirectory
-				) {
-					return;
-				}
-				typstSettings.templateDirectory = pendingTemplateDirectory;
-				await plugin.saveSettings();
-				await plugin.refreshTypstFeatures();
-				new Notice("Typst template directory updated");
+				text.inputEl.addEventListener("keydown", (event) => {
+					if (event.key === "Enter") {
+						event.preventDefault();
+						text.inputEl.blur();
+					}
+				});
 			});
-			text.inputEl.addEventListener("keydown", (event) => {
-				if (event.key === "Enter") {
-					event.preventDefault();
-					text.inputEl.blur();
-				}
-			});
-		});
+	});
 
 	// Default template selector
-	new Setting(section)
-		.setName("Default template")
-		.setDesc(
-			'Template used when no folder mapping or frontmatter specified. "default" is a read-only template.',
-		)
-		.addDropdown(async (dropdown) => {
-			dropdown.setDisabled(!templateManager);
-			if (templateManager) {
-				const templates = await templateManager.listTemplates();
-				templates.forEach((name) => {
-					dropdown.addOption(
-						name,
-						name === "default" ? `${name} (built-in)` : name,
-					);
-				});
-				dropdown
-					.setValue(typstSettings.defaultTemplateName || "default")
-					.onChange(async (value) => {
-						typstSettings.defaultTemplateName = value;
-						await plugin.saveSettings();
-						new Notice(`Default template set to: ${value}`);
+	templateGroup.addSetting((setting) => {
+		setting
+			.setName("Default template")
+			.setDesc(
+				'Template used when no folder mapping or frontmatter specified. "default" is a read-only template.',
+			)
+			.addDropdown(async (dropdown) => {
+				dropdown.setDisabled(!templateManager);
+				if (templateManager) {
+					const templates = await templateManager.listTemplates();
+					templates.forEach((name) => {
+						dropdown.addOption(
+							name,
+							name === "default" ? `${name} (built-in)` : name,
+						);
 					});
-			}
-		});
+					dropdown
+						.setValue(
+							typstSettings.defaultTemplateName || "default",
+						)
+						.onChange(async (value) => {
+							typstSettings.defaultTemplateName = value;
+							await plugin.saveSettings();
+							new Notice(`Default template set to: ${value}`);
+						});
+				}
+			});
+	});
 
 	// Template list management
-	const templateSetting = new Setting(section)
+	const templateSetting = new Setting(templateGroup.getListEl())
 		.setName("Template list")
 		.setDesc("Manage Typst templates (.typ files)");
 
@@ -1450,19 +1551,25 @@ export function renderTypstSettings(
 			}),
 	);
 
-	// ===== Conversion Preview =====
-	new Setting(section)
-		.setName("Preview conversion")
-		.setDesc(
-			"Test how your template and script transform Markdown to Typst",
-		)
-		.addButton((btn) => {
-			btn.setButtonText("Open Preview")
-				.setCta()
-				.onClick(() => {
-					new ConversionPreviewModal(plugin.app, plugin).open();
-				});
-		});
+	// ============================================================
+	// Group 6: Preview Tool (预览工具)
+	// ============================================================
+	const previewGroup = new SettingGroup(section).setHeading("Preview Tool");
+
+	previewGroup.addSetting((setting) => {
+		setting
+			.setName("Preview conversion")
+			.setDesc(
+				"Test how your template and script transform Markdown to Typst",
+			)
+			.addButton((btn) => {
+				btn.setButtonText("Open Preview")
+					.setCta()
+					.onClick(() => {
+						new ConversionPreviewModal(plugin.app, plugin).open();
+					});
+			});
+	});
 }
 
 /**

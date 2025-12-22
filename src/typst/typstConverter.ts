@@ -35,7 +35,7 @@ export interface MarkdownConvertOptions {
  */
 export type PreviewUpdateCallback = (
 	file: TFile,
-	typstCode: string
+	typstCode: string,
 ) => Promise<void>;
 
 export class TypstConverter {
@@ -47,17 +47,17 @@ export class TypstConverter {
 	constructor(
 		private app: App,
 		private settings: TypstSettings,
-		private scriptManager: TypstScriptManager
+		private scriptManager: TypstScriptManager,
 	) {
 		this.triggerTagSet = new Set(
 			(this.settings.triggerTags ?? ["bon-typst"]).map((tag) =>
-				tag.toLowerCase()
-			)
+				tag.toLowerCase(),
+			),
 		);
 		this.pathResolver = new TypstPathResolver();
 		this.templateManager = new TypstTemplateManager(
 			this.app.vault,
-			this.settings.templateDirectory
+			this.settings.templateDirectory,
 		);
 	}
 
@@ -131,7 +131,7 @@ export class TypstConverter {
 	async convertFile(
 		file: TFile,
 		metadata?: CachedMetadata | null,
-		options: ConvertOptions = {}
+		options: ConvertOptions = {},
 	): Promise<void> {
 		const cache = metadata ?? this.app.metadataCache.getFileCache(file);
 
@@ -156,13 +156,28 @@ export class TypstConverter {
 			});
 			const typstPath = this.buildTypstPathNew(file);
 
-			await this.writeTypstFile(typstPath, typstContent);
+			// Determine if we need to write intermediate .typ file to disk
+			// - YES if user wants to retain intermediate files
+			// - YES if auto-compile is enabled (CLI needs file on disk)
+			// - YES if preview mode is 'compile' (CLI fallback needs file)
+			// - NO if using pure WASM preview without compilation
+			const needsTempFile =
+				this.settings.retainIntermediateFiles ||
+				this.settings.autoCompile ||
+				this.settings.previewMode === "compile";
 
-			if (!options.silent) {
-				new Notice(`Typst file updated: ${typstPath}`);
+			if (needsTempFile) {
+				await this.writeTypstFile(typstPath, typstContent);
+
+				// Only show "Typst file updated" notice if user explicitly wants to retain files
+				if (!options.silent && this.settings.retainIntermediateFiles) {
+					new Notice(`Typst file updated: ${typstPath}`);
+				}
 			}
 
 			// Trigger preview update (according to preview mode)
+			// Note: previewUpdateCallback receives typstContent string directly,
+			// so WASM preview works without needing the file on disk
 			if (this.previewUpdateCallback) {
 				try {
 					await this.previewUpdateCallback(file, typstContent);
@@ -180,8 +195,26 @@ export class TypstConverter {
 					format,
 					options.silent,
 					file,
-					cache
+					cache,
 				);
+			}
+
+			// Cleanup: Delete intermediate .typ file if user doesn't want to retain it
+			// This runs AFTER preview update and compilation are complete
+			if (!this.settings.retainIntermediateFiles && needsTempFile) {
+				try {
+					const fileToDelete =
+						this.app.vault.getAbstractFileByPath(typstPath);
+					if (fileToDelete instanceof TFile) {
+						await this.app.vault.delete(fileToDelete);
+					}
+				} catch (cleanupError) {
+					// Silently ignore cleanup errors - not critical
+					console.warn(
+						`Failed to cleanup intermediate file: ${typstPath}`,
+						cleanupError,
+					);
+				}
 			}
 		} catch (error) {
 			const message =
@@ -201,7 +234,7 @@ export class TypstConverter {
 	 */
 	public async convertMarkdown(
 		markdown: string,
-		options: MarkdownConvertOptions = {}
+		options: MarkdownConvertOptions = {},
 	): Promise<string> {
 		const {
 			transformMode = this.settings.transformMode,
@@ -220,14 +253,14 @@ export class TypstConverter {
 			// Create and inject AST conversion function into the sandbox
 			const convertFn = this.createAstConverter(
 				currentFile ?? "",
-				maxEmbedDepth
+				maxEmbedDepth,
 			);
 
 			// Pass the conversion function into the sandbox
 			typstContent = await executeSandbox(
 				scriptCode,
 				markdown,
-				convertFn
+				convertFn,
 			);
 		} else {
 			const embedEnvironment: EmbedEnvironment = {
@@ -243,7 +276,7 @@ export class TypstConverter {
 					enableCheckboxEnhancement:
 						this.settings.enableCheckboxEnhancement ?? true,
 				},
-				embedEnvironment
+				embedEnvironment,
 			);
 		}
 
@@ -263,11 +296,10 @@ export class TypstConverter {
 	 */
 	private async applyTemplate(
 		content: string,
-		templateName: string
+		templateName: string,
 	): Promise<string> {
-		const templateContent = await this.templateManager.loadTemplate(
-			templateName
-		);
+		const templateContent =
+			await this.templateManager.loadTemplate(templateName);
 		// Prepend template to content with clear separator
 		return `${templateContent}\n\n${content}`;
 	}
@@ -275,7 +307,7 @@ export class TypstConverter {
 	private async runWithScriptEngine(
 		file: TFile,
 		metadata: CachedMetadata | null,
-		markdown: string
+		markdown: string,
 	): Promise<string> {
 		const scriptName = this.selectScript(file, metadata);
 		const scriptCode = await this.scriptManager.loadScript(scriptName);
@@ -288,7 +320,7 @@ export class TypstConverter {
 
 	private async runWithAstTransformer(
 		file: TFile,
-		markdown: string
+		markdown: string,
 	): Promise<string> {
 		const embedEnvironment: EmbedEnvironment = {
 			app: this.app,
@@ -302,7 +334,7 @@ export class TypstConverter {
 				enableCheckboxEnhancement:
 					this.settings.enableCheckboxEnhancement ?? true,
 			},
-			embedEnvironment
+			embedEnvironment,
 		);
 	}
 
@@ -320,7 +352,7 @@ export class TypstConverter {
 		format: "pdf" | "png" | "svg" = "pdf",
 		silent = false,
 		sourceFile?: TFile,
-		metadata?: CachedMetadata | null
+		metadata?: CachedMetadata | null,
 	): Promise<string> {
 		// Early check: CLI compilation only available on desktop
 		if (!Platform.isDesktopApp) {
@@ -335,7 +367,7 @@ export class TypstConverter {
 		const adapter = this.app.vault.adapter;
 		if (!(adapter instanceof FileSystemAdapter)) {
 			throw new Error(
-				"The current storage adapter does not support automatic Typst compilation"
+				"The current storage adapter does not support automatic Typst compilation",
 			);
 		}
 
@@ -343,7 +375,7 @@ export class TypstConverter {
 		let typstCliPath: string;
 		try {
 			typstCliPath = await this.pathResolver.resolveTypstPath(
-				this.settings.typstCliPath
+				this.settings.typstCliPath,
 			);
 		} catch (error) {
 			if (error instanceof TypstNotFoundError) {
@@ -372,11 +404,11 @@ export class TypstConverter {
 			// 确保输出目录存在
 			if (this.settings.outputDirectory) {
 				const outputDirExists = await this.app.vault.adapter.exists(
-					this.settings.outputDirectory
+					this.settings.outputDirectory,
 				);
 				if (!outputDirExists) {
 					await this.app.vault.createFolder(
-						this.settings.outputDirectory
+						this.settings.outputDirectory,
 					);
 				}
 			}
@@ -384,9 +416,8 @@ export class TypstConverter {
 			// 处理多页输出，确保文件夹存在
 			if (format === "png" || format === "svg") {
 				const folderPath = outputPath.replace(`/{n}.${format}`, "");
-				const folderExists = await this.app.vault.adapter.exists(
-					folderPath
-				);
+				const folderExists =
+					await this.app.vault.adapter.exists(folderPath);
 				if (!folderExists) {
 					await this.app.vault.createFolder(folderPath);
 				}
@@ -396,9 +427,8 @@ export class TypstConverter {
 			if (format === "png" || format === "svg") {
 				const basePath = typstPath.replace(/\.typ$/, "");
 				const folderPath = `${basePath}-pages`;
-				const folderExists = await this.app.vault.adapter.exists(
-					folderPath
-				);
+				const folderExists =
+					await this.app.vault.adapter.exists(folderPath);
 				if (!folderExists) {
 					await this.app.vault.createFolder(folderPath);
 				}
@@ -445,7 +475,7 @@ export class TypstConverter {
 	 */
 	private createAstConverter(
 		currentFile: string,
-		maxEmbedDepth: number = this.settings.maxEmbedDepth
+		maxEmbedDepth: number = this.settings.maxEmbedDepth,
 	): (md: string) => Promise<string> {
 		return async (md: string): Promise<string> => {
 			const embedEnvironment: EmbedEnvironment = {
@@ -460,7 +490,7 @@ export class TypstConverter {
 					enableCheckboxEnhancement:
 						this.settings.enableCheckboxEnhancement ?? true,
 				},
-				embedEnvironment
+				embedEnvironment,
 			);
 		};
 	}
@@ -534,7 +564,7 @@ export class TypstConverter {
 	 */
 	private resolveOutputName(
 		file: TFile,
-		metadata: CachedMetadata | null
+		metadata: CachedMetadata | null,
 	): string {
 		const priority = this.settings.outputNamingPriority;
 
@@ -591,14 +621,14 @@ export class TypstConverter {
 	private buildOutputPath(
 		file: TFile,
 		format: "pdf" | "png" | "svg",
-		metadata: CachedMetadata | null
+		metadata: CachedMetadata | null,
 	): string {
 		let baseName = this.resolveOutputName(file, metadata);
 
 		// 最终防御：确保 baseName 不为空（防止根目录等边界情况）
 		if (!baseName || baseName.trim() === "") {
 			console.warn(
-				`[TypstConverter] resolveOutputName returned empty for file "${file.path}", fallback to filename`
+				`[TypstConverter] resolveOutputName returned empty for file "${file.path}", fallback to filename`,
 			);
 			baseName = file.basename;
 		}
@@ -647,9 +677,8 @@ export class TypstConverter {
 		// 确保父目录存在
 		const parentPath = path.substring(0, path.lastIndexOf("/"));
 		if (parentPath) {
-			const parentExists = await this.app.vault.adapter.exists(
-				parentPath
-			);
+			const parentExists =
+				await this.app.vault.adapter.exists(parentPath);
 			if (!parentExists) {
 				await this.app.vault.createFolder(parentPath);
 			}
@@ -670,7 +699,7 @@ export class TypstConverter {
 	 */
 	private showNoticeWithActions(
 		outputPath: string,
-		format: "pdf" | "png" | "svg"
+		format: "pdf" | "png" | "svg",
 	): void {
 		const adapter = this.app.vault.adapter;
 		if (!(adapter instanceof FileSystemAdapter)) {
@@ -724,7 +753,7 @@ export class TypstConverter {
 				new Notice(
 					`Failed to open file manager: ${
 						error instanceof Error ? error.message : String(error)
-					}`
+					}`,
 				);
 			}
 		});
@@ -755,12 +784,12 @@ export class TypstConverter {
 						.filter(
 							(f) =>
 								f.path.startsWith(folderPath) &&
-								f.extension === format
+								f.extension === format,
 						);
 
 					if (folderFiles.length === 0) {
 						new Notice(
-							`No ${format.toUpperCase()} files found in output folder`
+							`No ${format.toUpperCase()} files found in output folder`,
 						);
 						return;
 					}
@@ -780,7 +809,7 @@ export class TypstConverter {
 				new Notice(
 					`Failed to open file: ${
 						error instanceof Error ? error.message : String(error)
-					}`
+					}`,
 				);
 			}
 		});
