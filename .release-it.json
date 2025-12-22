@@ -4,7 +4,9 @@
 		"tagName": "${version}",
 		"requireCleanWorkingDir": false,
 		"push": true,
-		"tagAnnotation": "Release ${version}"
+		"tagAnnotation": "Release ${version}",
+		"commit": true,
+		"tag": true
 	},
 	"npm": {
 		"publish": false
@@ -24,26 +26,11 @@
 			"preset": "angular",
 			"infile": "CHANGELOG.md",
 			"header": "# Changelog"
-		},
-		"@release-it/bumper": {
-			"in": {
-				"file": "manifest.json",
-				"type": "application/json"
-			},
-			"out": [
-				{
-					"file": "manifest.json",
-					"type": "application/json"
-				},
-				{
-					"file": "package.json",
-					"type": "application/json"
-				}
-			]
 		}
 	},
 	"hooks": {
 		"before:init": ["pnpm run test"],
-		"after:bump": ["pnpm run build:release"]
+		"after:bump": ["pnpm run version", "pnpm run build:release"],
+		"before:git:release": ["git add manifest.json versions.json"]
 	}
 }
