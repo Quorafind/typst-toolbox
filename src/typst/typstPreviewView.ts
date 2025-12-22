@@ -90,12 +90,6 @@ export class TypstPreviewView extends ItemView {
 	 */
 	private createToolbar(container: Element): void {
 		const toolbar = container.createDiv({ cls: "typst-preview-toolbar" });
-		toolbar.style.display = "flex";
-		toolbar.style.alignItems = "center";
-		toolbar.style.padding = "4px 10px";
-		toolbar.style.borderBottom =
-			"1px solid var(--background-modifier-border)";
-		toolbar.style.gap = "8px";
 
 		// Mode Switcher Button
 		this.modeSelectBtn = toolbar.createEl("button", {
@@ -105,12 +99,10 @@ export class TypstPreviewView extends ItemView {
 		this.modeSelectBtn.onclick = (e) => this.showModeMenu(e);
 
 		// Spacer
-		toolbar.createDiv({ attr: { style: "flex: 1" } });
+		toolbar.createDiv({ cls: "typst-toolbar-spacer" });
 
 		// Export Actions Group
 		const exportGroup = toolbar.createDiv({ cls: "typst-export-group" });
-		exportGroup.style.display = "flex";
-		exportGroup.style.gap = "4px";
 
 		// SVG export button
 		const btnSvg = exportGroup.createEl("button", {
@@ -288,13 +280,6 @@ export class TypstPreviewView extends ItemView {
 			const wrapper = this.previewContainer.createDiv({
 				cls: "docx-viewer-wrapper",
 			});
-			wrapper.style.padding = "20px";
-			wrapper.style.background = "white";
-			wrapper.style.color = "black";
-			wrapper.style.boxShadow = "0 0 10px rgba(0,0,0,0.1)";
-			wrapper.style.minHeight = "100%";
-			wrapper.style.maxWidth = "800px";
-			wrapper.style.margin = "0 auto";
 
 			this.renderDocxNode(json, wrapper);
 		} catch (error) {
@@ -332,16 +317,18 @@ export class TypstPreviewView extends ItemView {
 					this.renderDocxNode(node.children, container);
 					break;
 				case "paragraph":
-					el = container.createEl("p");
-					el.style.margin = "0.5em 0";
-					if (node.alignment) el.style.textAlign = node.alignment;
+					el = container.createEl("p", {
+						cls: "docx-preview-paragraph",
+					});
+					if (node.alignment)
+						el.addClass(`docx-align-${node.alignment}`);
 					this.renderDocxNode(node.children, el);
 					break;
 				case "run":
-					el = container.createSpan();
-					if (node.bold) el.style.fontWeight = "bold";
-					if (node.italic) el.style.fontStyle = "italic";
-					if (node.underline) el.style.textDecoration = "underline";
+					el = container.createSpan({ cls: "docx-preview-run" });
+					if (node.bold) el.addClass("docx-bold");
+					if (node.italic) el.addClass("docx-italic");
+					if (node.underline) el.addClass("docx-underline");
 					if (node.size) el.style.fontSize = `${node.size / 2}pt`;
 					if (node.color) el.style.color = `#${node.color}`;
 					this.renderDocxNode(node.children || node.text, el);
@@ -357,10 +344,9 @@ export class TypstPreviewView extends ItemView {
 					this.renderDocxNode(node.children, el);
 					break;
 				case "table":
-					el = container.createEl("table");
-					el.style.borderCollapse = "collapse";
-					el.style.width = "100%";
-					el.style.marginBottom = "1em";
+					el = container.createEl("table", {
+						cls: "docx-preview-table",
+					});
 					const tbody = el.createEl("tbody");
 					this.renderDocxNode(node.children || node.rows, tbody);
 					break;
@@ -371,9 +357,9 @@ export class TypstPreviewView extends ItemView {
 					break;
 				case "table_cell":
 				case "cell":
-					el = container.createEl("td");
-					el.style.border = "1px solid #ccc";
-					el.style.padding = "4px 8px";
+					el = container.createEl("td", {
+						cls: "docx-preview-cell",
+					});
 					if (node.colspan)
 						(el as HTMLTableCellElement).colSpan = node.colspan;
 					if (node.rowspan)
@@ -381,16 +367,14 @@ export class TypstPreviewView extends ItemView {
 					this.renderDocxNode(node.children, el);
 					break;
 				case "image":
-					el = container.createEl("img");
+					el = container.createEl("img", { cls: "docx-preview-img" });
 					if (node.src) (el as HTMLImageElement).src = node.src;
 					if (node.alt) (el as HTMLImageElement).alt = node.alt;
-					el.style.maxWidth = "100%";
 					break;
 				case "hyperlink":
 				case "link":
-					el = container.createEl("a");
+					el = container.createEl("a", { cls: "docx-preview-link" });
 					if (node.href) (el as HTMLAnchorElement).href = node.href;
-					el.style.color = "#0066cc";
 					this.renderDocxNode(node.children || node.text, el);
 					break;
 				case "list":

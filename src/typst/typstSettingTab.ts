@@ -524,7 +524,7 @@ export function renderTypstSettings(
 		);
 	}
 
-	const section = containerEl.createDiv({ cls: "typst-settings" });
+	const section = containerEl;
 
 	// ============================================================
 	// Group 1: Conversion Rules (转换规则)
@@ -1594,27 +1594,34 @@ function renderWasmManagementSettings(
 	containerEl: HTMLElement,
 	plugin: TypstToolboxPlugin,
 ) {
-	new Setting(containerEl).setHeading().setName("WASM module management");
+	const wasmGroup = new SettingGroup(containerEl).setHeading(
+		"WASM Module Management",
+	);
 
 	const wasmRenderer = plugin.getTypstWasmRenderer();
 	const storage = wasmRenderer?.getStorage();
 
 	if (!storage) {
-		new Setting(containerEl)
-			.setName("WASM status")
-			.setDesc(
-				"WASM renderer not initialized. Enable code block rendering first.",
-			);
+		wasmGroup.addSetting((setting) => {
+			setting
+				.setName("WASM status")
+				.setDesc(
+					"WASM renderer not initialized. Enable code block rendering first.",
+				);
+		});
 		return;
 	}
 
-	// WASM 状态显示
-	const statusSetting = new Setting(containerEl)
-		.setName("WASM status")
-		.setDesc("Loading...");
+	// WASM status display - need to keep reference for dynamic updates
+	let statusSetting: Setting | null = null;
+	wasmGroup.addSetting((setting) => {
+		statusSetting = setting;
+		setting.setName("WASM status").setDesc("Loading...");
+	});
 
-	// 更新状态显示
+	// Update status display function
 	const updateStatus = async () => {
+		if (!statusSetting) return;
 		try {
 			const infos = await storage.listAll();
 			if (infos.length === 0) {
@@ -1639,86 +1646,19 @@ function renderWasmManagementSettings(
 
 	void updateStatus();
 
-	// 下载按钮
-	new Setting(containerEl)
-		.setName("Download WASM from CDN")
-		.setDesc(
-			"Download WASM files from jsdelivr CDN and cache to IndexedDB (~6MB total)",
-		)
-		.addButton((button) =>
-			button.setButtonText("Download Compiler").onClick(async () => {
-				button.setDisabled(true);
-				button.setButtonText("Downloading...");
-
-				try {
-					await downloadAndCacheWasm(
-						WASM_CDN_URLS.compiler,
-						"compiler",
-						WASM_VERSION,
-						storage,
-						(loaded, total) => {
-							const percent = ((loaded / total) * 100).toFixed(0);
-							button.setButtonText(`${percent}%`);
-						},
-					);
-					new Notice("Compiler WASM downloaded successfully");
-					await updateStatus();
-				} catch (error) {
-					new Notice(
-						`Failed to download: ${
-							error instanceof Error
-								? error.message
-								: String(error)
-						}`,
-					);
-				} finally {
-					button.setDisabled(false);
-					button.setButtonText("Download Compiler");
-				}
-			}),
-		)
-		.addButton((button) =>
-			button.setButtonText("Download Renderer").onClick(async () => {
-				button.setDisabled(true);
-				button.setButtonText("Downloading...");
-
-				try {
-					await downloadAndCacheWasm(
-						WASM_CDN_URLS.renderer,
-						"renderer",
-						WASM_VERSION,
-						storage,
-						(loaded, total) => {
-							const percent = ((loaded / total) * 100).toFixed(0);
-							button.setButtonText(`${percent}%`);
-						},
-					);
-					new Notice("Renderer WASM downloaded successfully");
-					await updateStatus();
-				} catch (error) {
-					new Notice(
-						`Failed to download: ${
-							error instanceof Error
-								? error.message
-								: String(error)
-						}`,
-					);
-				} finally {
-					button.setDisabled(false);
-					button.setButtonText("Download Renderer");
-				}
-			}),
-		)
-		.addButton((button) =>
-			button
-				.setButtonText("Download Both")
-				.setCta()
-				.onClick(async () => {
+	// Download buttons
+	wasmGroup.addSetting((setting) => {
+		setting
+			.setName("Download WASM from CDN")
+			.setDesc(
+				"Download WASM files from jsdelivr CDN and cache to IndexedDB (~6MB total)",
+			)
+			.addButton((button) =>
+				button.setButtonText("Download Compiler").onClick(async () => {
 					button.setDisabled(true);
 					button.setButtonText("Downloading...");
 
 					try {
-						// 下载 compiler
 						await downloadAndCacheWasm(
 							WASM_CDN_URLS.compiler,
 							"compiler",
@@ -1729,26 +1669,10 @@ function renderWasmManagementSettings(
 									(loaded / total) *
 									100
 								).toFixed(0);
-								button.setButtonText(`Compiler: ${percent}%`);
+								button.setButtonText(`${percent}%`);
 							},
 						);
-
-						// 下载 renderer
-						await downloadAndCacheWasm(
-							WASM_CDN_URLS.renderer,
-							"renderer",
-							WASM_VERSION,
-							storage,
-							(loaded, total) => {
-								const percent = (
-									(loaded / total) *
-									100
-								).toFixed(0);
-								button.setButtonText(`Renderer: ${percent}%`);
-							},
-						);
-
-						new Notice("Both WASM files downloaded successfully");
+						new Notice("Compiler WASM downloaded successfully");
 						await updateStatus();
 					} catch (error) {
 						new Notice(
@@ -1760,104 +1684,199 @@ function renderWasmManagementSettings(
 						);
 					} finally {
 						button.setDisabled(false);
-						button.setButtonText("Download Both");
+						button.setButtonText("Download Compiler");
 					}
 				}),
-		);
-
-	// 加载本地文件按钮
-	new Setting(containerEl)
-		.setName("Load from local files")
-		.setDesc("Load WASM files from your computer")
-		.addButton((button) =>
-			button.setButtonText("Load Compiler").onClick(() => {
-				const input = document.createElement("input");
-				input.type = "file";
-				input.accept = ".wasm";
-				input.onchange = async () => {
-					const file = input.files?.[0];
-					if (!file) {
-						return;
-					}
+			)
+			.addButton((button) =>
+				button.setButtonText("Download Renderer").onClick(async () => {
+					button.setDisabled(true);
+					button.setButtonText("Downloading...");
 
 					try {
-						await loadLocalWasmFile(
-							file,
-							"compiler",
-							WASM_VERSION,
-							storage,
-						);
-						new Notice("Compiler WASM loaded successfully");
-						await updateStatus();
-					} catch (error) {
-						new Notice(
-							`Failed to load: ${
-								error instanceof Error
-									? error.message
-									: String(error)
-							}`,
-						);
-					}
-				};
-				input.click();
-			}),
-		)
-		.addButton((button) =>
-			button.setButtonText("Load Renderer").onClick(() => {
-				const input = document.createElement("input");
-				input.type = "file";
-				input.accept = ".wasm";
-				input.onchange = async () => {
-					const file = input.files?.[0];
-					if (!file) {
-						return;
-					}
-
-					try {
-						await loadLocalWasmFile(
-							file,
+						await downloadAndCacheWasm(
+							WASM_CDN_URLS.renderer,
 							"renderer",
 							WASM_VERSION,
 							storage,
+							(loaded, total) => {
+								const percent = (
+									(loaded / total) *
+									100
+								).toFixed(0);
+								button.setButtonText(`${percent}%`);
+							},
 						);
-						new Notice("Renderer WASM loaded successfully");
+						new Notice("Renderer WASM downloaded successfully");
 						await updateStatus();
 					} catch (error) {
 						new Notice(
-							`Failed to load: ${
+							`Failed to download: ${
 								error instanceof Error
 									? error.message
 									: String(error)
 							}`,
 						);
-					}
-				};
-				input.click();
-			}),
-		);
-
-	// 清除缓存按钮
-	new Setting(containerEl)
-		.setName("Clear WASM cache")
-		.setDesc("Remove all cached WASM files from IndexedDB")
-		.addButton((button) =>
-			button
-				.setButtonText("Clear All")
-				.setWarning()
-				.onClick(async () => {
-					try {
-						await storage.clearAll();
-						new Notice("WASM cache cleared");
-						await updateStatus();
-					} catch (error) {
-						new Notice(
-							`Failed to clear cache: ${
-								error instanceof Error
-									? error.message
-									: String(error)
-							}`,
-						);
+					} finally {
+						button.setDisabled(false);
+						button.setButtonText("Download Renderer");
 					}
 				}),
-		);
+			)
+			.addButton((button) =>
+				button
+					.setButtonText("Download Both")
+					.setCta()
+					.onClick(async () => {
+						button.setDisabled(true);
+						button.setButtonText("Downloading...");
+
+						try {
+							await downloadAndCacheWasm(
+								WASM_CDN_URLS.compiler,
+								"compiler",
+								WASM_VERSION,
+								storage,
+								(loaded, total) => {
+									const percent = (
+										(loaded / total) *
+										100
+									).toFixed(0);
+									button.setButtonText(
+										`Compiler: ${percent}%`,
+									);
+								},
+							);
+
+							await downloadAndCacheWasm(
+								WASM_CDN_URLS.renderer,
+								"renderer",
+								WASM_VERSION,
+								storage,
+								(loaded, total) => {
+									const percent = (
+										(loaded / total) *
+										100
+									).toFixed(0);
+									button.setButtonText(
+										`Renderer: ${percent}%`,
+									);
+								},
+							);
+
+							new Notice(
+								"Both WASM files downloaded successfully",
+							);
+							await updateStatus();
+						} catch (error) {
+							new Notice(
+								`Failed to download: ${
+									error instanceof Error
+										? error.message
+										: String(error)
+								}`,
+							);
+						} finally {
+							button.setDisabled(false);
+							button.setButtonText("Download Both");
+						}
+					}),
+			);
+	});
+
+	// Load from local files
+	wasmGroup.addSetting((setting) => {
+		setting
+			.setName("Load from local files")
+			.setDesc("Load WASM files from your computer")
+			.addButton((button) =>
+				button.setButtonText("Load Compiler").onClick(() => {
+					const input = document.createElement("input");
+					input.type = "file";
+					input.accept = ".wasm";
+					input.onchange = async () => {
+						const file = input.files?.[0];
+						if (!file) return;
+
+						try {
+							await loadLocalWasmFile(
+								file,
+								"compiler",
+								WASM_VERSION,
+								storage,
+							);
+							new Notice("Compiler WASM loaded successfully");
+							await updateStatus();
+						} catch (error) {
+							new Notice(
+								`Failed to load: ${
+									error instanceof Error
+										? error.message
+										: String(error)
+								}`,
+							);
+						}
+					};
+					input.click();
+				}),
+			)
+			.addButton((button) =>
+				button.setButtonText("Load Renderer").onClick(() => {
+					const input = document.createElement("input");
+					input.type = "file";
+					input.accept = ".wasm";
+					input.onchange = async () => {
+						const file = input.files?.[0];
+						if (!file) return;
+
+						try {
+							await loadLocalWasmFile(
+								file,
+								"renderer",
+								WASM_VERSION,
+								storage,
+							);
+							new Notice("Renderer WASM loaded successfully");
+							await updateStatus();
+						} catch (error) {
+							new Notice(
+								`Failed to load: ${
+									error instanceof Error
+										? error.message
+										: String(error)
+								}`,
+							);
+						}
+					};
+					input.click();
+				}),
+			);
+	});
+
+	// Clear cache button
+	wasmGroup.addSetting((setting) => {
+		setting
+			.setName("Clear WASM cache")
+			.setDesc("Remove all cached WASM files from IndexedDB")
+			.addButton((button) =>
+				button
+					.setButtonText("Clear All")
+					.setWarning()
+					.onClick(async () => {
+						try {
+							await storage.clearAll();
+							new Notice("WASM cache cleared");
+							await updateStatus();
+						} catch (error) {
+							new Notice(
+								`Failed to clear cache: ${
+									error instanceof Error
+										? error.message
+										: String(error)
+								}`,
+							);
+						}
+					}),
+			);
+	});
 }

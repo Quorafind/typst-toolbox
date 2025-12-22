@@ -6,6 +6,7 @@
 
 import { TextFileView, WorkspaceLeaf, TFile } from "obsidian";
 import { DocxViewerService } from "./docxViewerService";
+import { DOCX_STYLES } from "./docxStyles";
 
 export const DOCX_VIEW_TYPE = "docx-view";
 
@@ -155,6 +156,7 @@ interface TableCell {
 export class DocxView extends TextFileView {
 	private viewerService: DocxViewerService;
 	private contentContainer: HTMLElement;
+	private shadowRoot: ShadowRoot | null = null;
 
 	constructor(leaf: WorkspaceLeaf) {
 		super(leaf);
@@ -178,9 +180,23 @@ export class DocxView extends TextFileView {
 		container.empty();
 		container.addClass("docx-view");
 
-		this.contentContainer = container.createDiv({
-			cls: "docx-view-content",
-		});
+		// Create Shadow DOM host element
+		const shadowHost = container.createDiv({ cls: "docx-shadow-host" });
+
+		// Attach Shadow DOM
+		this.shadowRoot = shadowHost.attachShadow({ mode: "open" });
+
+		// Inject styles into Shadow DOM
+		const styleEl = document.createElement("style");
+		styleEl.textContent = DOCX_STYLES;
+		this.shadowRoot.appendChild(styleEl);
+
+		// Create content container inside Shadow DOM
+		const contentEl = document.createElement("div");
+		contentEl.className = "docx-view-content";
+		this.shadowRoot.appendChild(contentEl);
+
+		this.contentContainer = contentEl;
 	}
 
 	async onClose(): Promise<void> {

@@ -14,7 +14,7 @@ export interface WasmSettings {
 export const DEFAULT_WASM_SETTINGS: WasmSettings = {
 	installedVersion: "",
 	repoOwner: "Quorafind",
-	repoName: "obsidian-typst-docx",
+	repoName: "typst-toolbox",
 };
 
 export interface TypstDocxSettings {
