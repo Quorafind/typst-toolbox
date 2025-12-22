@@ -1,0 +1,49 @@
+{
+	"git": {
+		"commitMessage": "chore: release ${version}",
+		"tagName": "${version}",
+		"requireCleanWorkingDir": false,
+		"push": true,
+		"tagAnnotation": "Release ${version}"
+	},
+	"npm": {
+		"publish": false
+	},
+	"github": {
+		"release": true,
+		"releaseName": "${version}",
+		"assets": [
+			"main.js",
+			"manifest.json",
+			"styles.css",
+			"dist/wasm-modules.zip"
+		]
+	},
+	"plugins": {
+		"@release-it/conventional-changelog": {
+			"preset": "angular",
+			"infile": "CHANGELOG.md",
+			"header": "# Changelog"
+		},
+		"@release-it/bumper": {
+			"in": {
+				"file": "manifest.json",
+				"type": "application/json"
+			},
+			"out": [
+				{
+					"file": "manifest.json",
+					"type": "application/json"
+				},
+				{
+					"file": "package.json",
+					"type": "application/json"
+				}
+			]
+		}
+	},
+	"hooks": {
+		"before:init": ["pnpm run test"],
+		"after:bump": ["pnpm run build:release"]
+	}
+}
