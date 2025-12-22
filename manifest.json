@@ -1,11 +1,13 @@
 {
-	"id": "sample-plugin",
-	"name": "Sample Plugin",
-	"version": "1.0.0",
-	"minAppVersion": "0.15.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
-	"isDesktopOnly": false
+	"id": "typst-toolbox",
+	"name": "Typst Toolbox",
+	"version": "0.1.1",
+	"minAppVersion": "1.11.0",
+	"description": "Convert Markdown to Typst and then to DOCX/PDF. Supports real-time preview and editing.",
+	"author": "Boninall",
+	"authorUrl": "https://github.com/Quorafind",
+	"fundingUrl": {
+		"Buy Me a Coffee": "https://www.buymeacoffee.com/boninall"
+	},
+	"isDesktopOnly": true
 }

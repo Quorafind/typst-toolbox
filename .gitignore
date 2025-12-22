@@ -1,5 +1,5 @@
 # vscode
-.vscode 
+.vscode
 
 # Intellij
 *.iml
@@ -20,3 +20,18 @@ data.json
 
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store
+
+# Claude/Codex
+.codex
+.claude
+example.md
+
+# Exclude all Rust crates (closed source - only publish WASM artifacts)
+crates/
+
+# WASM output (generated during build, uploaded to releases)
+wasm/
+scripts
+dist
+workflow.md
+.env

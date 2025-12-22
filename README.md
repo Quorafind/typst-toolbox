@@ -1,94 +1,113 @@
-# Obsidian Sample Plugin
+# Typst Toolbox
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+A comprehensive Typst integration toolbox for Obsidian, enabling seamless Markdown-to-Typst conversion, document export, and DOCX viewing.
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+[中文文档](README_CN.md)
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open Sample Modal" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+## Features
 
-## First time developing plugins?
+### Markdown to Typst Conversion
 
-Quick starting guide for new plugin devs:
+Convert your Markdown notes to Typst format with intelligent transformation:
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+- **AST Mode**: Automatic conversion using unified AST parser with full Obsidian syntax support
+- **Script Mode**: Customizable transformation using JavaScript scripts with sandboxed execution
 
-## Releasing new releases
+### Inline Typst Rendering
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+Embed Typst code blocks directly in your notes with real-time SVG rendering:
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+````
+```typst
+#set text(font: "New Computer Modern")
+#align(center)[
+  = Hello Typst
+]
+```
+````
 
-## Adding your plugin to the community plugin list
+### Document Export
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
+Export your converted documents to multiple formats:
 
-## How to use
+- **PDF** (requires Typst CLI)
+- **PNG** (requires Typst CLI)
+- **SVG** (WASM-based, no CLI required if no external packages are imported)
+- **DOCX** (experimental, via Typst-to-DOCX converter)
 
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+### DOCX Viewer
 
-## Manually installing the plugin
+View DOCX files directly in Obsidian without external applications:
 
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
+- Native rendering powered by Rust WASM
+- Accurate page layout with proper margins and dimensions (A4, Letter, etc.)
+- Full support for text formatting (bold, italic, underline, colors, fonts)
+- Tables with borders, merged cells, and background colors
+- Images and shapes rendering
+- Headers and footers with page numbers
 
-## Improve code quality with eslint (optional)
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- To use eslint with this project, make sure to install eslint from terminal:
-  - `npm install -g eslint`
-- To use eslint to analyze this project use this command:
-  - `eslint main.ts`
-  - eslint will then create a report with suggestions for code improvement by file and line number.
-- If your source code is in a folder, such as `src`, you can use eslint with this command to analyze all files in that folder:
-  - `eslint ./src/`
+### Live Preview
 
-## Funding URL
+Real-time preview pane with automatic updates as you edit.
 
-You can include funding URLs where people who use your plugin can financially support it.
+### Global API
 
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
+Access Typst conversion capabilities programmatically:
 
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
+```javascript
+// Convert Markdown to Typst
+const typst = await window.bon.typst.convertAsync("# Hello World");
+
+// List available scripts
+const scripts = window.bon.typst.listScripts();
+
+// Execute custom script
+const result = window.bon.typst.executeScript("my-script", content);
 ```
 
-If you have multiple URLs, you can also do:
+### Custom Script Management
 
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
-```
+Create and manage custom transformation scripts:
 
-## API Documentation
+- Built-in script editor with syntax highlighting
+- Frontmatter-based script selection
+- Folder-to-script mappings
 
-See https://github.com/obsidianmd/obsidian-api
+### Typst CLI Integration
+
+Automatic detection and integration with Typst CLI for advanced features like external package support.
+
+## Configuration
+
+| Option | Description |
+|--------|-------------|
+| **Trigger Tags** | Define tags that automatically enable Typst conversion |
+| **Auto-compile** | Automatically compile to PDF/PNG when files change |
+| **Transform Mode** | Choose between AST-based or script-based transformation |
+| **Script Mappings** | Map folders to specific transformation scripts |
+| **Max Embed Depth** | Control the depth of embedded content processing |
+
+## Usage
+
+### Typst Conversion
+
+1. Enable Typst in plugin settings
+2. Add trigger tags to your note's frontmatter (e.g., `tags: ["bon-typst"]`)
+3. Edit your Markdown content normally
+4. View the live preview or export to PDF/PNG/SVG/DOCX
+5. (Optional) Create custom scripts for specialized transformation needs
+6. Use `typst-script: <script-name>` in frontmatter to select a custom script
+
+### DOCX Viewing
+
+Simply open any `.docx` file in your vault - the plugin will automatically render it with proper page layout and formatting.
+
+## Requirements
+
+- **Typst CLI** (optional): Required for PDF/PNG export and external package support
+  - Install via: `cargo install typst-cli` or download from [Typst releases](https://github.com/typst/typst/releases)
+- **WASM modules**: Bundled with the plugin, no additional installation needed
+
+## License
+
+MIT
