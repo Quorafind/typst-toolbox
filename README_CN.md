@@ -110,4 +110,4 @@ const result = window.bon.typst.executeScript("my-script", content);
 
 ## 许可证
 
-MIT
+Apache 2.0

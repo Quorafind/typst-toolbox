@@ -110,4 +110,4 @@ Simply open any `.docx` file in your vault - the plugin will automatically rende
 
 ## License
 
-MIT
+Apache 2.0
