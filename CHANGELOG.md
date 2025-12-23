@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.1.0](https://github.com/Quorafind/Typst-Toolbox/compare/1.0.0...1.1.0) (2025-12-23)
+
+
+### Features
+
+* **docx:** add hot-reload on file modification ([d03a89d](https://github.com/Quorafind/Typst-Toolbox/commit/d03a89dc694b0434873809a714e6cfaf85bd211e))
+
 # [1.0.0](https://github.com/Quorafind/Typst-Toolbox/compare/v0.2.0...1.0.0) (2025-12-22)
 
 
