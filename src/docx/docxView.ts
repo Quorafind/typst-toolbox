@@ -175,6 +175,17 @@ export class DocxView extends TextFileView {
 		return "file-text";
 	}
 
+	async onload(): Promise<void> {
+		await super.onload();
+		this.registerEvent(
+			this.app.vault.on("modify", (file) => {
+				if (this.file && file.path === this.file.path) {
+					this.renderDocx();
+				}
+			}),
+		);
+	}
+
 	async onOpen(): Promise<void> {
 		const container = this.containerEl.children[1];
 		container.empty();
