@@ -1,6 +1,6 @@
 {
 	"name": "typst-toolbox",
-	"version": "1.2.0",
+	"version": "1.2.1",
 	"description": "Obsidian plugin to convert Markdown to Typst and then to DOCX/PDF",
 	"main": "main.js",
 	"type": "module",
