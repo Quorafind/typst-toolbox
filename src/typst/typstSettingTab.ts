@@ -619,6 +619,58 @@ export function renderTypstSettings(
 			);
 	});
 
+	// Heading numbering configuration
+	conversionGroup.addSetting((setting) => {
+		let textInput: TextComponent | null = null;
+
+		setting
+			.setName("Heading numbering")
+			.setDesc(
+				"Override heading numbering style. Leave empty to inherit from template.\n" +
+					'Examples: "1.1" (hierarchical), "1.a" (mixed), "I.1" (roman), "none" (disable)',
+			);
+
+		// Preset dropdown for common patterns
+		setting.addDropdown((dropdown) => {
+			dropdown.addOption("", "Inherit from template");
+			dropdown.addOption("none", "Disable numbering");
+			dropdown.addOption('"1.1"', "1.1 (Hierarchical)");
+			dropdown.addOption('"1.a"', "1.a (Mixed)");
+			dropdown.addOption('"I.1"', "I.1 (Roman)");
+			dropdown.addOption("custom", "Custom...");
+
+			// Determine initial dropdown value
+			const currentValue = typstSettings.headingNumbering || "";
+			const presetValues = ["", "none", '"1.1"', '"1.a"', '"I.1"'];
+			const isPreset = presetValues.includes(currentValue);
+
+			dropdown.setValue(isPreset ? currentValue : "custom");
+
+			dropdown.onChange(async (value) => {
+				if (value === "custom") {
+					// Focus on text input for custom value
+					textInput?.inputEl.focus();
+					return;
+				}
+				typstSettings.headingNumbering = value;
+				textInput?.setValue(value);
+				await plugin.saveSettings();
+			});
+		});
+
+		// Text input for custom values
+		setting.addText((text) => {
+			textInput = text;
+			text.setPlaceholder('e.g. "1.1" or none')
+				.setValue(typstSettings.headingNumbering || "")
+				.onChange(async (value) => {
+					typstSettings.headingNumbering = value.trim();
+					await plugin.saveSettings();
+				});
+			text.inputEl.style.width = "120px";
+		});
+	});
+
 	conversionGroup.addSetting((setting) => {
 		setting
 			.setName("Enable Typst code block rendering")

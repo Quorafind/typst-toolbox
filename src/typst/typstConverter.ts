@@ -280,7 +280,17 @@ export class TypstConverter {
 			);
 		}
 
-		// Step 2: Apply template (if enabled and template name provided)
+		// Step 2: Inject heading numbering override (if configured)
+		// This must come before template application so the final order is:
+		// [Template] -> [Numbering Override] -> [Content]
+		if (this.settings.headingNumbering) {
+			const numberingValue = this.settings.headingNumbering;
+			// Insert the #set heading rule at the beginning of content
+			// This will override template defaults when template is prepended
+			typstContent = `#set heading(numbering: ${numberingValue})\n\n${typstContent}`;
+		}
+
+		// Step 3: Apply template (if enabled and template name provided)
 		if (this.settings.enableTemplateSystem && templateName) {
 			typstContent = await this.applyTemplate(typstContent, templateName);
 		}

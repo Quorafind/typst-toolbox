@@ -36,6 +36,22 @@ export interface TypstSettings {
 	 */
 	defaultScriptName: string;
 
+	/**
+	 * Heading numbering configuration
+	 * Controls the numbering style for headings in converted documents.
+	 *
+	 * Values:
+	 * - "": Inherit from template (no override, let template decide)
+	 * - "none": Explicitly disable all heading numbering
+	 * - '"1.1"': Standard hierarchical numbering (1, 1.1, 1.1.1)
+	 * - '"1.a"': Mixed format (1, 1.a, 1.a.i)
+	 * - '"I.1"': Roman numerals at top level (I, I.1, I.1.1)
+	 * - Custom Typst expression: Advanced patterns or functions
+	 *
+	 * @default ""
+	 */
+	headingNumbering: string;
+
 	// === 模板系统配置 ===
 	/**
 	 * Enable Typst template system
@@ -133,6 +149,7 @@ export const DEFAULT_TYPST_SETTINGS: TypstSettings = {
 	typstCliPath: undefined, // Auto-detect by default
 	enableCheckboxEnhancement: true, // Enable by default for full feature support
 	defaultScriptName: "default", // Use default template script by default
+	headingNumbering: "", // Default: inherit from template (no override)
 
 	// 模板系统默认值
 	enableTemplateSystem: true,
