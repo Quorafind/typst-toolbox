@@ -1,6 +1,7 @@
 export type TypstTransformMode = "ast" | "script";
 export type TypstPreviewMode = "compile" | "wasm" | "none";
 export type TypstCompileFormat = "pdf" | "png" | "svg";
+export type WikiLinkRenderingMode = "link" | "text";
 
 export interface TypstSettings {
 	enabled: boolean;
@@ -29,6 +30,13 @@ export interface TypstSettings {
 	 * @default true
 	 */
 	enableCheckboxEnhancement: boolean;
+	/**
+	 * WikiLink rendering mode for export compatibility
+	 * - "link": Render as Typst #link() (default, works for PDF)
+	 * - "text": Render as plain text (safer for Word export, avoids invalid XML)
+	 * @default "link"
+	 */
+	wikiLinkRendering: WikiLinkRenderingMode;
 	/**
 	 * User's default script name (used when no folder mapping or frontmatter script specified)
 	 * Note: "default" is a special read-only template script
@@ -148,6 +156,7 @@ export const DEFAULT_TYPST_SETTINGS: TypstSettings = {
 	compileFormat: "pdf", // Default output is PDF (can be displayed in preview view)
 	typstCliPath: undefined, // Auto-detect by default
 	enableCheckboxEnhancement: true, // Enable by default for full feature support
+	wikiLinkRendering: "link", // Default to link mode (PDF compatible)
 	defaultScriptName: "default", // Use default template script by default
 	headingNumbering: "", // Default: inherit from template (no override)
 

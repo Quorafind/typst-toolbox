@@ -48,6 +48,13 @@ export interface TypstTransformOptions {
 	 * @default true
 	 */
 	enableCheckboxEnhancement: boolean;
+	/**
+	 * WikiLink rendering mode for export compatibility
+	 * - "link": Render as Typst #link() (default, works for PDF)
+	 * - "text": Render as plain text (safer for Word export, avoids invalid XML)
+	 * @default "link"
+	 */
+	wikiLinkRendering: "link" | "text";
 	onEmbedDepthExceeded?: (path: string, depth: number) => void;
 	onCircularReference?: (path: string, stack: string[]) => void;
 	onMissingEmbed?: (path: string) => void;

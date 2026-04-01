@@ -275,6 +275,8 @@ export class TypstConverter {
 					maxEmbedDepth,
 					enableCheckboxEnhancement:
 						this.settings.enableCheckboxEnhancement ?? true,
+					wikiLinkRendering:
+						this.settings.wikiLinkRendering ?? "link",
 				},
 				embedEnvironment,
 			);
@@ -343,6 +345,7 @@ export class TypstConverter {
 				maxEmbedDepth: this.settings.maxEmbedDepth,
 				enableCheckboxEnhancement:
 					this.settings.enableCheckboxEnhancement ?? true,
+				wikiLinkRendering: this.settings.wikiLinkRendering ?? "link",
 			},
 			embedEnvironment,
 		);
@@ -499,6 +502,8 @@ export class TypstConverter {
 					maxEmbedDepth,
 					enableCheckboxEnhancement:
 						this.settings.enableCheckboxEnhancement ?? true,
+					wikiLinkRendering:
+						this.settings.wikiLinkRendering ?? "link",
 				},
 				embedEnvironment,
 			);

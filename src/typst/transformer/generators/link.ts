@@ -43,7 +43,7 @@ function calculateRelativePath(from: string, to: string): string {
 
 export function generateLink(
 	node: Link,
-	renderChildren: RenderChildren
+	renderChildren: RenderChildren,
 ): string {
 	const label = renderChildren(node.children);
 	return `#link("${escapeAttribute(node.url)}")[${label}]`;
@@ -56,7 +56,11 @@ export function generateImage(node: Image, context: GeneratorContext): string {
 	let imagePath = node.url;
 
 	// 如果 URL 不是绝对路径或 URL，计算相对路径
-	if (!imagePath.startsWith("http://") && !imagePath.startsWith("https://") && !imagePath.startsWith("/")) {
+	if (
+		!imagePath.startsWith("http://") &&
+		!imagePath.startsWith("https://") &&
+		!imagePath.startsWith("/")
+	) {
 		// 将 .typ 文件路径转换为实际路径（去掉 .md 加 .typ）
 		const typFilePath = context.currentFile.replace(/\.md$/i, ".typ");
 		imagePath = calculateRelativePath(typFilePath, imagePath);
@@ -65,8 +69,17 @@ export function generateImage(node: Image, context: GeneratorContext): string {
 	return `#image("${escapeAttribute(imagePath)}"${alt})`;
 }
 
-export function generateWikiLink(node: ObsidianWikiLinkNode): string {
+export function generateWikiLink(
+	node: ObsidianWikiLinkNode,
+	context: GeneratorContext,
+): string {
 	const target = node.path ?? node.value;
 	const display = node.alias ?? node.value;
+
+	// If text mode is enabled (for Word export compatibility), render as plain text
+	if (context.options.wikiLinkRendering === "text") {
+		return display;
+	}
+
 	return `#link("${escapeAttribute(target)}")[${display}]`;
 }

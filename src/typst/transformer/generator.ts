@@ -103,7 +103,10 @@ export class TypstGenerator {
 
 		// 检测是否需要导入 cheq 包（支持扩展 checkbox）
 		// 仅在启用增强功能且文档包含 checkbox 时导入
-		if (this.context.options.enableCheckboxEnhancement && this.hasCheckboxes(root)) {
+		if (
+			this.context.options.enableCheckboxEnhancement &&
+			this.hasCheckboxes(root)
+		) {
 			output += '#import "@preview/cheq:0.3.0": checklist\n';
 			output += "#show: checklist.with(extras: true)\n\n";
 		}
@@ -125,13 +128,13 @@ export class TypstGenerator {
 		switch (node.type) {
 			case "root":
 				return this.renderChildren(
-					(node as Root).children as Content[]
+					(node as Root).children as Content[],
 				);
 			case "paragraph":
 				return generateParagraph(
 					node as Paragraph,
 					this.renderChildren,
-					this.context
+					this.context,
 				);
 			case "text":
 				return generateText(node as Text, this.context);
@@ -149,10 +152,14 @@ export class TypstGenerator {
 				return generateHeading(
 					node as Heading,
 					this.context,
-					this.renderChildren
+					this.renderChildren,
 				);
 			case "list":
-				return generateList(node as List, this.renderChildren, this.context);
+				return generateList(
+					node as List,
+					this.renderChildren,
+					this.context,
+				);
 			case "table":
 				return generateTable(node as Table, this.renderChildren);
 			case "link":
@@ -166,7 +173,7 @@ export class TypstGenerator {
 			case "callout":
 				return generateCallout(
 					node as ObsidianCalloutNode,
-					this.renderChildren
+					this.renderChildren,
 				);
 			case "obsidianTag":
 				return generateTag(node as ObsidianTagNode);
@@ -175,19 +182,22 @@ export class TypstGenerator {
 			case "obsidianHighlight":
 				return generateHighlight(
 					node as ObsidianHighlightNode,
-					this.renderChildren
+					this.renderChildren,
 				);
 			case "embedDocument":
 				return generateEmbedDocument(
 					node as EmbedDocumentNode,
 					this.renderChildren,
-					this.context
+					this.context,
 				);
 			case "wikiLink":
-				return generateWikiLink(node as ObsidianWikiLinkNode);
+				return generateWikiLink(
+					node as ObsidianWikiLinkNode,
+					this.context,
+				);
 			case "blockquote":
 				const content = this.renderChildren(
-					(node as Blockquote).children as Content[]
+					(node as Blockquote).children as Content[],
 				);
 				// 移除 quote 内部段落末尾多余的 #parbreak()
 				const cleaned = content.replace(/\n#parbreak\(\)\n$/, "");

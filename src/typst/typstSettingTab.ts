@@ -619,6 +619,31 @@ export function renderTypstSettings(
 			);
 	});
 
+	// WikiLink rendering mode configuration
+	conversionGroup.addSetting((setting) => {
+		setting
+			.setName("WikiLink rendering mode")
+			.setDesc(
+				"How to render [[WikiLinks]] in converted output.\n" +
+					"Link: Render as Typst #link() (works for PDF).\n" +
+					"Text: Render as plain text (recommended for Word export to avoid invalid XML).",
+			)
+			.addDropdown((dropdown) => {
+				dropdown.addOption("link", "Link (Default)");
+				dropdown.addOption("text", "Text Only (Word compatible)");
+				dropdown.setValue(typstSettings.wikiLinkRendering ?? "link");
+				dropdown.onChange(async (value) => {
+					typstSettings.wikiLinkRendering = value as "link" | "text";
+					await plugin.saveSettings();
+					new Notice(
+						value === "text"
+							? "WikiLinks will be rendered as plain text (Word compatible)."
+							: "WikiLinks will be rendered as Typst links.",
+					);
+				});
+			});
+	});
+
 	// Heading numbering configuration
 	conversionGroup.addSetting((setting) => {
 		let textInput: TextComponent | null = null;

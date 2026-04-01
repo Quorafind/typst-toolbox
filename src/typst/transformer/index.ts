@@ -32,6 +32,7 @@ const DEFAULT_OPTIONS: TypstTransformOptions = {
 	preserveFrontmatter: false,
 	maxEmbedDepth: 5,
 	enableCheckboxEnhancement: true,
+	wikiLinkRendering: "link",
 };
 
 const IMAGE_EXTENSIONS = new Set([
@@ -123,10 +124,13 @@ function createProcessor(options: TypstTransformOptions) {
 
 async function fallbackResolveFilePath(
 	link: string,
-	env: EmbedEnvironment
+	env: EmbedEnvironment,
 ): Promise<EmbedResolveResult | null> {
 	// 使用 Obsidian 原生 API 解析链接
-	const file = env.app.metadataCache.getFirstLinkpathDest(link, env.currentFile);
+	const file = env.app.metadataCache.getFirstLinkpathDest(
+		link,
+		env.currentFile,
+	);
 
 	if (!file) {
 		return null;
@@ -144,13 +148,22 @@ async function resolveEmbedNode(
 	options: TypstTransformOptions,
 	env: EmbedEnvironment,
 	depth: number,
-	stack: string[]
+	stack: string[],
 ): Promise<void> {
+	// Use || (not ??) so empty string falls through to rawTarget.
+	// Fixes ![[#Heading]] self-embeds where originalPath is "".
 	const linkTarget =
-		node.data?.originalPath ??
-		node.data?.rawTarget ??
-		node.data?.alias ??
+		node.data?.originalPath ||
+		node.data?.rawTarget ||
+		node.data?.alias ||
 		"";
+
+	// Self-embed: ![[#Heading]] — originalPath is "" but heading exists
+	if (!linkTarget && node.data?.heading) {
+		// TODO: implement heading-section extraction from current file
+		return;
+	}
+
 	if (!linkTarget) {
 		return;
 	}
@@ -221,7 +234,7 @@ async function resolveEmbedNode(
 		options,
 		nextEnv,
 		depth + 1,
-		stack.concat(resolved.path)
+		stack.concat(resolved.path),
 	);
 
 	// 3. 生成 Typst 代码（传入当前文件路径用于计算相对路径）
@@ -240,7 +253,7 @@ async function resolveEmbedsInTree(
 	options: TypstTransformOptions,
 	env: EmbedEnvironment,
 	depth = 0,
-	stack: string[] = []
+	stack: string[] = [],
 ): Promise<void> {
 	if (!options.enableEmbeds) {
 		return;
@@ -259,7 +272,7 @@ async function resolveEmbedsInTree(
 export async function markdownToTypst(
 	markdown: string,
 	options: Partial<TypstTransformOptions> = {},
-	embedEnvironment?: EmbedEnvironment
+	embedEnvironment?: EmbedEnvironment,
 ): Promise<string> {
 	const fullOptions: TypstTransformOptions = {
 		...DEFAULT_OPTIONS,
@@ -271,9 +284,13 @@ export async function markdownToTypst(
 	const transformed = (await processor.run(parsed)) as Root;
 
 	if (embedEnvironment && fullOptions.enableEmbeds) {
-		await resolveEmbedsInTree(transformed, fullOptions, embedEnvironment, 0, [
-			embedEnvironment.currentFile,
-		]);
+		await resolveEmbedsInTree(
+			transformed,
+			fullOptions,
+			embedEnvironment,
+			0,
+			[embedEnvironment.currentFile],
+		);
 	}
 
 	// 传入当前文件路径（用于计算图片等资源的相对路径）

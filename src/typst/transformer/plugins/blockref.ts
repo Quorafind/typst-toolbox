@@ -4,7 +4,9 @@ import type { Root, Text } from "mdast";
 import type { ObsidianBlockRefNode } from "../types";
 import { replaceInTextNode } from "./utils";
 
-const BLOCK_REF_PATTERN = /\^([a-zA-Z0-9-]+)/g;
+// Obsidian block refs: space + ^id at end of line (e.g. "some text ^my-ref")
+// Require whitespace before ^ to avoid matching math like 2^10 or x^n.
+const BLOCK_REF_PATTERN = /(?<=\s)\^([a-zA-Z0-9][a-zA-Z0-9-]*)$/gm;
 
 export const remarkBlockRefs: Plugin<[], Root> = () => {
 	return (tree) => {
